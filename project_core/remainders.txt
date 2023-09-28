@@ -1,0 +1,134 @@
+/usr/bin/ssh -i /app/.ssh/DC platform_user@192.168.1.50 -o 'PubkeyAcceptedKeyTypes +ssh-rsa' "interface print"
+
+OS COMMANDS TEMPLATES {
+    # Convertation from *.p12 to *.crt
+    openssl pkcs12 -in /home/bauer/Projects/NetworkMonitor/project_core/user_certificates/ovpn-client-danilchik.p12 -nodes -out /home/bauer/Projects/NetworkMonitor/project_core/user_certificates/ovpn-client-denilchik.crt
+
+    # Download from SSH
+    scp -i /home/ivanov/.ssh/routers -o 'PubkeyAcceptedKeyTypes +ssh-rsa'
+
+    # Send command from SSH
+    /usr/bin/ssh -i /home/ivanov/.ssh/routers git@$CURENT_IP -o 'PubkeyAcceptedKeyTypes +ssh-rsa' "export verbose" > /home/ivanov/ROUTERS/$REPO_NAME/curent_config.rsc 2>&1
+}
+
+MIKROTIK COMMANDS TEMPLATES {
+    # certificate export
+    /certificate export name=test_cert country=RU state=31 locality=KRD organization=DOGMA unit=DIS common-name=test_com_name key-size=2048 key-usage=tls-client
+
+    # certificate sign
+    /certificate sign test_cert_1 name=ca_test1 ca=ca
+
+    # certificate export
+    /certificate export-certificate {certificate_dto.title} type=pkcs12 export-passphrase={certificate_dto.passwd} file=etst_exp_file
+
+    # PPP create
+    /ppp secret add name={certificate_dto.title} password={certificate_dto.key} service=ovpn profile=OVPN_Profile_Users
+}
+
+PLATFORM CODE TEMPLATES {
+    # ALL IP
+    if 'IP Address' in cdp_string.get('_source').get('layers').get('cdp').get('Addresses').keys().__str__().split(',')[-1][:-2]:
+    --OR--
+    .get('_source').get('layers').get('lldp').get('Management Address').get('lldp.mgn.addr.ip4')
+
+    # ALL VLANS:
+    .get('_source').get('layers').get('vlan').get('vlan.id')
+
+    # ALL PORTS:
+    .get('_source').get('layers').get('lldp').get('Management Address').get('lldp.mgn.interface.number')
+    
+    # ALL SYSTEM NAMES:
+    str(*[item.split(' ')[-1] for item in i.get('_source').get('layers').get('lldp').keys() if 'System Name' in item])
+
+    # CDP REPORT PARSER
+    for cdp_key in report_files_list.cdp_report_list:
+        convert_cdp_pcap = subprocess.run(f'tshark -r {cdp_key} -T json', stdout=subprocess.PIPE, shell=True, check=True)
+        arr_cdp_pcap: list[list[str]] = [item for item in json.loads(convert_cdp_pcap.stdout.decode('utf8').replace("'", '"'))]
+
+        # GET DTO (Platform, ip, mac)
+        for cdp_string in arr_cdp_pcap:
+            # Если мак адрес уникальный
+            if cdp_string.get('_source').get('layers').get('eth').get('eth.src') not in cdp_mac_list:
+                cdp_mac_list.append(cdp_string.get('_source').get('layers').get('eth').get('eth.src'))
+
+                for item in cdp_string.get('_source').get('layers').get('cdp').get('Addresses').values():
+                    if type(item) == dict:
+                        dto_list.append(
+                            CDPParsedDataDTO(
+                                platform = cdp_string.get('_source').get('layers').get('eth').get('eth.src_tree').get('eth.src_resolved'),
+                                ip = item.get('cdp.nrgyz.ip_address'),
+                                mac = cdp_string.get('_source').get('layers').get('eth').get('eth.src'),
+                            )
+                        )
+}
+
+
+DISCORD EMBED CODE
+const lib = require('lib')({token: process.env.STDLIB_SECRET_TOKEN});
+
+await lib.discord.channels['@0.3.2'].messages.create({
+  "channel_id": `${context.params.event.channel_id}`,
+  "content": "",
+  "tts": false,
+  "components": [
+    {
+      "type": 1,
+      "components": [
+        {
+          "style": 5,
+          "label": `Кнопка`,
+          "url": `url`,
+          "disabled": false,
+          "type": 2
+        },
+        {
+          "custom_id": `row_0_select_1`,
+          "placeholder": `Выпадающее меню`,
+          "options": [
+            {
+              "label": `11`,
+              "value": `11`,
+              "description": `Описание 11`,
+              "default": false
+            },
+            {
+              "label": `21`,
+              "value": `21`,
+              "description": `Описание 21`,
+              "default": false
+            }
+          ],
+          "min_values": 2,
+          "max_values": 5,
+          "type": 3
+        }
+      ]
+    }
+  ],
+  "embeds": [
+    {
+      "type": "rich",
+      "title": `Заголовок`,
+      "description": `Описание`,
+      "color": 0x49c104,
+      "fields": [
+        {
+          "name": `Поле1`,
+          "value": `Значение1`,
+          "inline": true
+        },
+        {
+          "name": `Поле2`,
+          "value": `Значение2`,
+          "inline": true
+        }
+      ],
+      "author": {
+        "name": `Имя автора`
+      },
+      "footer": {
+        "text": `Дата создания`
+      }
+    }
+  ]
+});

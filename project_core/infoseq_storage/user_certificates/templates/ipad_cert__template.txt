@@ -1,0 +1,25 @@
+client
+dev tun
+proto tcp
+remote {{ vpn_server }} {{ vpn_port }}
+persist-key
+persist-tun
+remote-cert-tls server
+auth-user-pass{% for rout in routes %}
+{{ rout }}{% endfor %}
+cipher AES-256-CBC
+<cert>
+-----BEGIN CERTIFICATE-----{% for cert in cert_body %}
+{{ cert }}{% endfor %}
+-----END CERTIFICATE-----
+</cert>
+<ca>
+-----BEGIN CERTIFICATE-----{% for ca in ca_body %}
+{{ ca }}{% endfor %}
+-----END CERTIFICATE-----
+</ca>
+<key>
+-----BEGIN PRIVATE KEY-----{% for key in key_body %}
+{{ key }}{% endfor %}
+-----END PRIVATE KEY-----
+</key>

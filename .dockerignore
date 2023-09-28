@@ -1,0 +1,14 @@
+# DOCKER IGNORE
+Dockerfile
+.dockerignore
+.env_template
+*.yml
+
+# NGINX IGNORE
+/nginx/
+
+# PROJECT IGNORE
+/venv/
+requirements.txt
+.vscode/
+
